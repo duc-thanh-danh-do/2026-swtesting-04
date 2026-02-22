@@ -11,7 +11,6 @@ import { getDogImage } from '../controllers/dogController'
 
 describe('Dog Routes', () => {
   beforeEach(() => {
-    vi.resetModules()
     vi.clearAllMocks()
   })
 
