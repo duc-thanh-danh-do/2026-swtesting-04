@@ -1,36 +1,28 @@
 import { describe, expect, test, vi } from 'vitest'
-import request from 'supertest'
-import { app } from '../index'
+import { getDogImage } from '../controllers/dogController'
+import * as dogService from '../services/dogService'
 
-describe('Dog API Controller', () => {
-  test('GET /api/dogs/random returns success with mocked dog data', async () => {
-    const originalFetch = global.fetch
-
+describe('dogController - getDogImage', () => {
+  test('Test 3 returns success true with mocked service data', async () => {
     const mockDogData = {
-      message: 'https://images.dog.ceo/breeds/terrier-welsh/lucy.jpg',
+      imageUrl: 'https://mocked-dog.jpg',
       status: 'success'
     }
 
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => mockDogData
-    } as Response)
+    vi.spyOn(dogService, 'getRandomDogImage')
+      .mockResolvedValue(mockDogData)
 
-    global.fetch = mockFetch
+    const req = {}
+    const json = vi.fn()
+    const res = { json }
 
-    const response = await request(app)
-      .get('/api/dogs/random')
+    await getDogImage(req as any, res as any)
 
-    console.log(' Test 3: Test Response Status:', response.status)
-    console.log('Test Response Body:', JSON.stringify(response.body, null, 2))
+    expect(dogService.getRandomDogImage).toHaveBeenCalledOnce()
 
-    expect(response.status).toBe(200)
-    expect(response.body).toHaveProperty('success', true)
-    expect(response.body).toHaveProperty('data')
-    expect(response.body.data.imageUrl).toBe(mockDogData.message)
-    expect(response.body.data.status).toBe('success')
-    expect(mockFetch).toHaveBeenCalledOnce()
-
-    global.fetch = originalFetch
+    expect(json).toHaveBeenCalledWith({
+      success: true,
+      data: mockDogData
+    })
   })
 })

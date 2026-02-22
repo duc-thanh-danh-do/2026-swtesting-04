@@ -1,60 +1,46 @@
 import { describe, expect, test, vi } from 'vitest'
-import request from 'supertest'
-import { app } from '../index'
+import { getRandomDogImage } from '../services/dogService'
 
-describe('Dog API', () => {
-  test('GET /api/dogs/random returns dog image', async () => {
+describe('dogService - getRandomDogImage', () => {
+  test('Test 1: positive: returns mapped dog data from mocked Dog API', async () => {
     const originalFetch = global.fetch
 
     const mockDogData = {
       message: 'https://images.dog.ceo/breeds/terrier-welsh/lucy.jpg',
-      status: 'success'
+      status: 'success',
     }
 
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => mockDogData
+      json: async () => mockDogData,
     } as Response)
 
     global.fetch = mockFetch
 
-    const response = await request(app)
-      .get('/api/dogs/random')
-    
-    console.log(' test 1: Test Response Status:', response.status)
-    console.log('Test Response Body:', JSON.stringify(response.body, null, 2))
-    
-    expect(response.status).toBe(200)
-    expect(response.body).toHaveProperty('success', true)
-    expect(response.body.data).toHaveProperty('status', 'success')
-    expect(response.body.data.imageUrl).toBe(mockDogData.message)
+    const result = await getRandomDogImage()
+
+    expect(result.imageUrl).toBe(mockDogData.message)
+    expect(result.status).toBe('success')
     expect(mockFetch).toHaveBeenCalledOnce()
 
     global.fetch = originalFetch
   })
 
-  test('GET /api/dogs/random returns 500 when external API fails', async () => {
+  test('Test 2 negative: rejects when Dog API returns ok=false', async () => {
     const originalFetch = global.fetch
 
     const mockFetch = vi.fn().mockResolvedValue({
       ok: false,
-      status: 500
+      status: 500,
     } as Response)
 
     global.fetch = mockFetch
 
-    const response = await request(app)
-      .get('/api/dogs/random')
+    await expect(getRandomDogImage()).rejects.toThrow(
+      'Failed to fetch dog image: Dog API returned status 500'
+    )
 
-    console.log('Test 2: Test Response Status:', response.status)
-    console.log('Test Response Body:', JSON.stringify(response.body, null, 2))
-
-    expect(response.status).toBe(500)
-    expect(response.body).toHaveProperty('success', false)
-    expect(response.body).toHaveProperty('error')
-    expect(response.body.error).toContain('Failed to fetch dog image: Dog API returned status 500')
     expect(mockFetch).toHaveBeenCalledOnce()
-
     global.fetch = originalFetch
   })
 })

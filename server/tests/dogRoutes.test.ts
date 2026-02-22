@@ -1,57 +1,58 @@
-import { describe, expect, test, vi } from 'vitest'
+import { describe, expect, test, vi, beforeEach } from 'vitest'
 import request from 'supertest'
-import { app } from '../index'
 
-describe('Dog API Routes', () => {
-  test('GET /api/dogs/random returns 200 with mocked dog data', async () => {
-    const originalFetch = global.fetch
+vi.mock('../controllers/dogController', () => {
+  return {
+    getDogImage: vi.fn(),
+  }
+})
 
-    const mockImageUrl = 'https://images.dog.ceo/breeds/terrier-australian/n02096294_4137.jpg'
-    const mockDogData = {
-      message: mockImageUrl,
-      status: 'success'
-    }
+import { getDogImage } from '../controllers/dogController'
 
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => mockDogData
-    } as Response)
-
-    global.fetch = mockFetch
-
-    const response = await request(app)
-      .get('/api/dogs/random')
-
-    console.log('Test 4: Test Response Status:', response.status)
-    console.log('Test Response Body:', JSON.stringify(response.body, null, 2))
-
-    expect(response.status).toBe(200)
-    expect(response.body).toHaveProperty('success', true)
-    expect(response.body.data.imageUrl).toContain(mockImageUrl)
-    expect(mockFetch).toHaveBeenCalledOnce()
-
-    global.fetch = originalFetch
+describe('Dog Routes', () => {
+  beforeEach(() => {
+    vi.resetModules()
+    vi.clearAllMocks()
   })
 
-  test('GET /api/dogs/random returns 500 for network error', async () => {
-    const originalFetch = global.fetch
+  test('Test 4: GET /api/dogs/random returns 200 with mocked controller', async () => {
+    const mockImageUrl = 'https://mocked-dog.jpg'
 
-    const mockFetch = vi.fn().mockRejectedValue(new Error('Network error'))
+    ;(getDogImage as unknown as any).mockImplementation((_req: any, res: any) => {
+      return res.status(200).json({
+        success: true,
+        data: {
+          imageUrl: mockImageUrl,
+          status: 'success',
+        },
+      })
+    })
 
-    global.fetch = mockFetch
+    const { app } = await import('../index')
 
-    const response = await request(app)
-      .get('/api/dogs/random')
+    const response = await request(app).get('/api/dogs/random')
 
-    console.log('Test 5: Test Response Status:', response.status)
-    console.log('Test Response Body:', JSON.stringify(response.body, null, 2))
+    expect(response.status).toBe(200)
+    expect(response.body.success).toBe(true)
+    expect(response.body.data.imageUrl).toContain(mockImageUrl)
+    expect(getDogImage).toHaveBeenCalledOnce()
+  })
+
+  test('Test 5: GET /api/dogs/random returns 500 when controller returns error', async () => {
+    ;(getDogImage as unknown as any).mockImplementation((_req: any, res: any) => {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to fetch dog image: Network error',
+      })
+    })
+
+    const { app } = await import('../index')
+
+    const response = await request(app).get('/api/dogs/random')
 
     expect(response.status).toBe(500)
-    expect(response.body).toHaveProperty('success', false)
-    expect(response.body).toHaveProperty('error')
-    expect(response.body.error).toContain('Failed to fetch dog image: Network error')
-    expect(mockFetch).toHaveBeenCalledOnce()
-
-    global.fetch = originalFetch
+    expect(response.body.success).toBe(false)
+    expect(response.body.error).toBe('Failed to fetch dog image: Network error')
+    expect(getDogImage).toHaveBeenCalledOnce()
   })
 })
